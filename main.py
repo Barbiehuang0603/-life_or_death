@@ -195,16 +195,16 @@ pygame.mixer.init()
 sound_10s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-ten-seconds.mp3"
 sound_30s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\60-second-countdown.mp3"
 sound_5s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-5-to-1.mp3"
-
+sound_gameover_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\gameover.mp3"
 observe_10s = pygame.mixer.Sound(sound_10s_path)
 bgm_30s = pygame.mixer.Sound(sound_30s_path)
 cue_5s = pygame.mixer.Sound(sound_5s_path)
-
+bgm_gameover = pygame.mixer.Sound(sound_gameover_path)
 # 狀態鎖：確保在同一個房間/生命週期裡，音效各自只會被 play() 一次
 played_10s_observe = False
 played_30s_bgm = False
 played_5s_cue = False
-
+played_gameover = False
 def reset_room_audio():
     """每次邁入新房間、原地復活、或超時計時重置時呼叫，切斷舊聲音並解開控制鎖"""
     global played_30s_bgm, played_5s_cue
@@ -382,7 +382,7 @@ for i in range(1,9):
     game_over_frames.append(img)
 
 def play_game_over_animation():
-
+    global played_gameover
     # ===== 001 =====
     frame1 = game_over_frames[0]
 
@@ -472,7 +472,9 @@ def play_game_over_animation():
         pygame.event.pump()
 
         pygame.time.delay(20)
-
+        if not played_gameover:
+            bgm_gameover.play()
+            played_gameover = True
     pygame.event.pump()
     pygame.time.delay(700)
 
@@ -676,9 +678,9 @@ while True:
                             play_game_over_animation()
                         else:
                             show_message(
-                                "FALL OUT OF BUILDING!",
-                                f"You fell outside! {lives} lives left",
-                                (180,30,0),(0,0,0),(0,0,0)
+                                    "You're dead",
+                                    f"You have {lives} lives left",
+                                    (0,0,0), (255,0,0), (255,0,0)
                             )
                             
                             player_x, player_y = full_path[current_step_index] # 確保座標鎖在對的格子
