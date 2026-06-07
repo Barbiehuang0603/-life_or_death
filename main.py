@@ -188,12 +188,34 @@ def assign_room_photos():
 room = generate_room()
 assign_room_photos()  # ✅ 在遊戲開始前先把第一間房的門牌照片固定下來
 directions = ["front", "right", "back", "left"]
+pygame.mixer.init()
 
+sound_10s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-ten-seconds.mp3"
+sound_30s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\60-second-countdown.mp3"
+sound_5s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-5-to-1.mp3"
+
+observe_10s = pygame.mixer.Sound(sound_10s_path)
+bgm_30s = pygame.mixer.Sound(sound_30s_path)
+cue_5s = pygame.mixer.Sound(sound_5s_path)
+
+# 狀態鎖：確保在同一個房間/生命週期裡，音效各自只會被 play() 一次
+played_10s_observe = False
+played_30s_bgm = False
+played_5s_cue = False
+
+def reset_room_audio():
+    """每次邁入新房間、原地復活、或超時計時重置時呼叫，切斷舊聲音並解開控制鎖"""
+    global played_30s_bgm, played_5s_cue
+    bgm_30s.stop()
+    cue_5s.stop()
+    played_30s_bgm = False
+    played_5s_cue = False
+    
 # =====================================
 # 計時器設定
 # =====================================
 
-ROOM_TIME_LIMIT = 60
+ROOM_TIME_LIMIT = 30
 OBSERVE_TIME_LIMIT = 10  # ⭐ 新增：地圖展示時間 10 秒
 
 # 統一抓取遊戲剛啟動的時間戳
@@ -441,9 +463,17 @@ while True:
         elapsed_time = (pygame.time.get_ticks() - start_ticks) / 1000
         remaining_time = max(0, OBSERVE_TIME_LIMIT - int(elapsed_time))
         
+        if remaining_time <= 10 and not played_10s_observe:
+            observe_10s.play()
+            played_10s_observe = True
+        # ──────────────────────────────────────────
+
+        if remaining_time <= 0:
+            observe_10s.stop()
         if remaining_time <= 0:
             # 10 秒到了！切換狀態，並記錄正式開始玩遊戲的時間戳
             game_state = GAME_PLAYING
+            reset_room_audio()
             room_start_time = pygame.time.get_ticks()
             print_terminal_status() # 後台也同步列印
 
@@ -451,6 +481,17 @@ while True:
     elif game_state == GAME_PLAYING:
         elapsed_time = (pygame.time.get_ticks() - room_start_time) / 1000
         remaining_time = max(0, ROOM_TIME_LIMIT - int(elapsed_time))
+        # 🔊 A. 剩餘時間 30 秒到 6 秒之間（前 25 秒）：播放背景倒數
+        if 5 < remaining_time <= 30 and not played_30s_bgm:
+            bgm_30s.play()
+            played_30s_bgm = True
+            
+        # 🔊 B. 最後 5 秒瞬間：前半段立刻閉嘴，5秒致命倒數無縫切入！
+        if remaining_time <= 5 and not played_5s_cue:
+            bgm_30s.stop() 
+            cue_5s.play()
+            played_5s_cue = True
+            
         if remaining_time<=0:
             lives-=1
             if lives<=0:
@@ -463,7 +504,7 @@ while True:
                     (0,0,0),
                     (0,0,0)
                 )
-                
+                reset_room_audio()
                 player_x, player_y = full_path[current_step_index]
                 room_start_time=pygame.time.get_ticks()
     else:
@@ -540,7 +581,7 @@ while True:
                                 player_x, player_y = full_path[current_step_index] # 正式移過去
                                 
                                 # 到了新房間，重新發照片固定 東西南北 裝潢
-                               
+                                reset_room_audio()
                                 assign_room_photos()
                                 room_start_time = pygame.time.get_ticks() 
                                 print_terminal_status()
@@ -557,6 +598,7 @@ while True:
                                     f"You have {lives} lives left",
                                     (0,0,0), (255,0,0), (255,0,0)
                                 )
+                                reset_room_audio()
                                 player_x, player_y = full_path[current_step_index]
                             room_start_time = pygame.time.get_ticks()
                             
@@ -738,4 +780,4 @@ while True:
         screen.blit(clear_text, (WIDTH // 2 - clear_text.get_width() // 2, HEIGHT // 2 - clear_text.get_height() // 2))
 
     pygame.display.update()
-    clock.tick(60)
+    clock.tick(30)
