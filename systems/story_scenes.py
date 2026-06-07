@@ -1,11 +1,10 @@
 # systems/intro.py
 
 import pygame
-from data.intro_data import INTRO_SCENES
 
-class IntroScene:
+class StoryScene:
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, scenes):
 
         self.width = width
         self.height = height
@@ -38,7 +37,7 @@ class IntroScene:
             16
         )
 
-        self.scenes = INTRO_SCENES
+        self.scenes = scenes
 
         # 預先載入圖片
         self.images = []
@@ -279,9 +278,20 @@ if __name__ == "__main__":
 
     clock = pygame.time.Clock()
 
-    intro = IntroScene(
+    from data.intro_data import INTRO_SCENES
+    from data.outro_data import OUTRO_SCENES
+
+    TEST_MODE = "OUTRO"
+
+    if TEST_MODE == "INTRO":
+        scenes = INTRO_SCENES
+    else:
+        scenes = OUTRO_SCENES
+
+    story = StoryScene(
         WIDTH,
-        HEIGHT
+        HEIGHT,
+        scenes
     )
 
     while True:
@@ -299,22 +309,22 @@ if __name__ == "__main__":
                     print("SPACE")
 
                     current_text = (
-                        intro.scenes[intro.index]["text"]
+                        story.scenes[story.index]["text"]
                     )
 
-                    if intro.char_index < len(current_text):
+                    if story.char_index < len(current_text):
 
-                        intro.displayed_text = current_text
+                        story.displayed_text = current_text
 
-                        intro.char_index = len(current_text)
+                        story.char_index = len(current_text)
 
                     else:
 
-                        intro.next_scene()
+                        story.next_scene()
 
-        intro.update() 
+        story.update() 
 
-        intro.draw(screen)
+        story.draw(screen)
 
         pygame.display.update()
 
