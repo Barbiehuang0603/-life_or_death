@@ -188,6 +188,8 @@ def assign_room_photos():
 room = generate_room()
 assign_room_photos()  # ✅ 在遊戲開始前先把第一間房的門牌照片固定下來
 directions = ["front", "right", "back", "left"]
+
+pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.mixer.init()
 
 sound_10s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-ten-seconds.mp3"
@@ -210,7 +212,11 @@ def reset_room_audio():
     cue_5s.stop()
     played_30s_bgm = False
     played_5s_cue = False
-    
+def stop_all_audio():
+    """發生 Game Over 或通關時，一次性切斷所有後台音效"""
+    observe_10s.stop()
+    bgm_30s.stop()
+    cue_5s.stop()
 # =====================================
 # 計時器設定
 # =====================================
@@ -362,7 +368,114 @@ def fade_door(selected_type):
                 screen.blit(temp, (SIGN_X, SIGN_Y))
                 pygame.display.update()
                 pygame.time.delay(15)
-                
+            
+game_over_frames=[]
+
+for i in range(1,9):
+    img=pygame.image.load(
+        f"assets/room/game_over/{i:03d}.png"
+    )
+    img=pygame.transform.scale(
+        img,
+        (WIDTH,HEIGHT)
+    )
+    game_over_frames.append(img)
+
+def play_game_over_animation():
+
+    # ===== 001 =====
+    frame1 = game_over_frames[0]
+
+    for alpha in range(80,256,3):
+
+        temp = frame1.copy()
+        temp.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+        screen.blit(temp,(0,0))
+
+        pygame.display.update()
+
+        pygame.time.delay(15)
+
+    pygame.time.delay(500)
+
+
+    # ===== 002~004 =====
+    for i in range(1,4):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+
+        pygame.time.delay(200)
+
+
+    # ===== 005~006 =====
+    for i in range(4,6):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(240)
+
+    # ===== 006 007 =====
+
+    frame6 = game_over_frames[5]
+    frame7 = game_over_frames[6]
+
+    for alpha in range(50,256,2):
+
+        temp6 = frame6.copy()
+        temp6.set_alpha(255-alpha)
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp6,(0,0))
+        screen.blit(temp7,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(15)
+
+    # ===== 007 ??008 =====
+
+    frame8 = game_over_frames[7]
+
+    for alpha in range(0,256,3):
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(255-alpha)
+
+        temp8 = frame8.copy()
+        temp8.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp7,(0,0))
+        screen.blit(temp8,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(20)
+
+    pygame.event.pump()
+    pygame.time.delay(700)
+
 # =====================================
 # 前進動畫
 # =====================================
@@ -461,7 +574,7 @@ while True:
     # ⭐ 1. 看地圖計時邏輯
     if game_state == GAME_OBSERVING:
         elapsed_time = (pygame.time.get_ticks() - start_ticks) / 1000
-        remaining_time = max(0, OBSERVE_TIME_LIMIT - int(elapsed_time))
+        remaining_time = max(0, OBSERVE_TIME_LIMIT - int(elapsed_time-0.5))
         
         if remaining_time <= 10 and not played_10s_observe:
             observe_10s.play()
@@ -495,6 +608,7 @@ while True:
         if remaining_time<=0:
             lives-=1
             if lives<=0:
+                stop_all_audio()
                 game_state=GAME_TIMEOUT
             else:
                 show_message(
@@ -504,8 +618,9 @@ while True:
                     (0,0,0),
                     (0,0,0)
                 )
-                reset_room_audio()
+                
                 player_x, player_y = full_path[current_step_index]
+                reset_room_audio()
                 room_start_time=pygame.time.get_ticks()
     else:
         remaining_time=0
@@ -556,15 +671,18 @@ while True:
                         lives -= 1
                         
                         if lives <= 0:
+                            stop_all_audio()
                             game_state = GAME_DIED
+                            play_game_over_animation()
                         else:
                             show_message(
                                 "FALL OUT OF BUILDING!",
                                 f"You fell outside! {lives} lives left",
-                                (0,0,0), (255,0,0), (255,0,0)
+                                (180,30,0),(0,0,0),(0,0,0)
                             )
                             
                             player_x, player_y = full_path[current_step_index] # 確保座標鎖在對的格子
+                            reset_room_audio()
                         room_start_time = pygame.time.get_ticks()
 
                     # 🌟 常規判定：還在大樓內，檢查 C 語言地圖是 1 還是 0
@@ -575,6 +693,7 @@ while True:
                             play_gogo_animation()
                             
                             if current_step_index + 1 >= len(full_path):
+                                stop_all_audio()
                                 game_state = GAME_CLEAR
                             else:
                                 current_step_index += 1
@@ -591,7 +710,9 @@ while True:
                             play_gogo_animation()
                             lives -= 1
                             if lives <= 0:
+                                stop_all_audio()
                                 game_state = GAME_DIED
+                                play_game_over_animation()
                             else:
                                 show_message(
                                     "You're dead",
@@ -605,12 +726,9 @@ while True:
     # =================================
     # Draw 渲染畫面
     # =================================
-    
-    #  狀態 A：如果正在看地圖，去呼叫你的 draw_observer_map
     if game_state == GAME_OBSERVING:
         draw_observer_map(remaining_time)
 
-    # 狀態 B：第一人稱遊戲中
     elif game_state == GAME_PLAYING:
         draw_room()
 
@@ -629,149 +747,40 @@ while True:
 
         pygame.draw.rect(screen, border_color, (box_x, box_y, box_width, box_height), 2)
         screen.blit(timer_text, (box_x + padding, box_y + padding))
+
         for i in range(MAX_LIVES):
-
-            x=WIDTH-48*(MAX_LIVES-i)-10
-            y=20
-
-            if i<lives:
-
-                screen.blit(
-                    heart_img,
-                    (x,y)
-                )
-
+            x = WIDTH - 48 * (MAX_LIVES - i) - 10
+            y = 20
+            if i < lives:
+                screen.blit(heart_img, (x, y))
             else:
-
-                screen.blit(
-                    empty_heart_img,
-                    (x,y)
-                )
+                screen.blit(empty_heart_img, (x, y))
 
         # 危險紅色閃爍邊框
-        if remaining_time<=10:
+        if remaining_time <= 10:
+            pulse = abs(pygame.time.get_ticks() % 1000 - 500) / 500
+            base_alpha = int(150 * (1 - pulse))
 
-            pulse=abs(
-                pygame.time.get_ticks()%1000-500
-            )/500
-
-            base_alpha=int(
-                150*(1-pulse)
-            )
-
-            warning_surface=pygame.Surface(
-                (WIDTH,HEIGHT),
-                pygame.SRCALPHA
-            )
-
-            border_width=100
+            warning_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            border_width = 100
 
             for i in range(border_width):
+                alpha = int(base_alpha * ((border_width - i) / border_width))
+                color = (100, 0, 0, alpha)
+                pygame.draw.rect(warning_surface, color, (i, i, WIDTH - 2 * i, HEIGHT - 2 * i), 1)
 
-                alpha=int(
-                    base_alpha*
-                    ((border_width-i)/border_width)
-                )
-
-                color=(100,0,0,alpha)
-
-                pygame.draw.rect(
-                    warning_surface,
-                    color,
-                    (
-                        i,
-                        i,
-                        WIDTH-2*i,
-                        HEIGHT-2*i
-                    ),
-                    1
-                )
-
-            screen.blit(
-                warning_surface,
-                (0,0)
-            )
-    
-    elif game_state == GAME_DIED:
-        screen.fill((0,0,0))
-
-        title_font = pygame.font.Font(pixel_font, 120)
-        title_font.set_bold(True)
-
-        subtitle_font = pygame.font.Font(pixel_font, 70)
-        subtitle_font.set_bold(True)
-        
-
-        title=title_font.render(
-            "You're dead",
-            True,
-            (255,0,0)
-        )
-
-        subtitle=subtitle_font.render(
-            "Game Over...",
-            True,
-            (255,0,0)
-        )
-
-        screen.blit(
-            title,
-            (
-                WIDTH//2-title.get_width()//2,
-                HEIGHT//2-90
-            )
-        )
-
-        screen.blit(
-            subtitle,
-            (
-                WIDTH//2-subtitle.get_width()//2,
-                HEIGHT//2+20
-            )
-        )
+            screen.blit(warning_surface, (0, 0))
 
     elif game_state == GAME_TIMEOUT:
-        screen.fill((180,30,0))
+        screen.fill((180, 30, 0))
+        title_font = pygame.font.Font(pixel_font, 120)
+        subtitle_font = pygame.font.Font(pixel_font, 70)
 
-        title_font=pygame.font.Font(
-            pixel_font,
-            120,
-            bold=True
-        )
+        title = title_font.render("Time's up!!", True, (0, 0, 0))
+        subtitle = subtitle_font.render("Game Over...", True, (0, 0, 0))
 
-        subtitle_font=pygame.font.Font(
-            pixel_font,
-            70,
-            bold=True
-        )
-
-        title=title_font.render(
-            "Time's up!!",
-            True,
-            (0,0,0)
-        )
-
-        subtitle=subtitle_font.render(
-            "Game Over...",
-            True,
-            (0,0,0)
-        )
-
-        screen.blit(
-            title,
-            (
-                WIDTH//2-title.get_width()//2,
-                HEIGHT//2-90
-            )
-        )
-
-        screen.blit(
-            subtitle,
-            (
-                WIDTH//2-subtitle.get_width()//2,
-                HEIGHT//2+20
-            )
-        )
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 90))
+        screen.blit(subtitle, (WIDTH // 2 - subtitle.get_width() // 2, HEIGHT // 2 + 20))
 
     elif game_state == GAME_CLEAR:
         screen.fill((0, 0, 0))
