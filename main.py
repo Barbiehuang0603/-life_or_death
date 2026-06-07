@@ -4,7 +4,6 @@ import random
 from systems.room import generate_room
 
 pygame.init()
-
 pixel_font = "assets/font/PixelOperator-Bold.ttf"
 
 WIDTH=960
@@ -20,6 +19,10 @@ GAME_DIED=1
 GAME_TIMEOUT=2
 GAME_OVER_ANIMATION=3
 game_state=GAME_PLAYING
+GAME_OVER_BY_DEATH = 0
+GAME_OVER_BY_TIMEOUT = 1
+
+game_over_type = GAME_OVER_BY_DEATH
 
 # 生命值
 MAX_LIVES=3
@@ -43,7 +46,6 @@ room_start_time=pygame.time.get_ticks()
 timer_font=pygame.font.Font(
     pixel_font,
     36,
-    bold=True
 )
 
 # 背景
@@ -130,6 +132,22 @@ for i in range(1,9):
         (WIDTH,HEIGHT)
     )
     game_over_frames.append(img)
+
+#time up動畫
+timeup_frames=[]
+
+for i in range(1,3):
+
+    img=pygame.image.load(
+        f"assets/room/timeup/{i:03d}.png"
+    )
+
+    img=pygame.transform.scale(
+        img,
+        (WIDTH,HEIGHT)
+    )
+
+    timeup_frames.append(img)
 
 # 畫房間
 def draw_room():
@@ -313,6 +331,37 @@ def play_game_over_animation():
     pygame.event.pump()
     pygame.time.delay(700)
 
+def play_timeout_game_over():
+    frame1 = timeup_frames[0]
+    frame2 = timeup_frames[1]
+    # ===== 001 淡入 =====
+    for alpha in range(20,256,2):
+        temp = frame1.copy()
+        temp.set_alpha(alpha)
+        screen.fill((0,0,0))
+        screen.blit(temp,(0,0))
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(15)
+    pygame.event.pump()
+    pygame.time.delay(500)
+
+    # 001 → 002 交叉淡入
+    for alpha in range(0,256,3):
+        temp1 = frame1.copy()
+        temp1.set_alpha(255-alpha)
+        temp2 = frame2.copy()
+        temp2.set_alpha(alpha)
+        screen.fill((0,0,0))
+        screen.blit(temp1,(0,0))
+        screen.blit(temp2,(0,0))
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(20)
+    # 停在 002
+    pygame.event.pump()
+    pygame.time.delay(1000)
+
 # 轉場畫面
 def show_message(
     title,
@@ -325,13 +374,11 @@ def show_message(
     title_font=pygame.font.Font(
         pixel_font,
         120,
-        bold=True
     )
 
     subtitle_font=pygame.font.Font(
         pixel_font,
         70,
-        bold=True
     )
 
     screen.fill(bg_color)
@@ -389,7 +436,9 @@ while True:
 
             if lives<=0:
 
-                game_state=GAME_TIMEOUT
+                play_timeout_game_over()
+                game_over_type=GAME_OVER_BY_TIMEOUT
+                game_state=GAME_OVER_ANIMATION
 
             else:
 
@@ -468,6 +517,7 @@ while True:
 
                         if lives<=0:
                             play_game_over_animation()
+                            game_over_type=GAME_OVER_BY_DEATH
                             game_state=GAME_OVER_ANIMATION
 
                         else:
@@ -597,60 +647,10 @@ while True:
             )
     
     elif game_state==GAME_OVER_ANIMATION:
-        screen.blit(
-            game_over_frames[7],
-            (0,0)
-        )
-
-  
-
-
-
-    elif game_state==GAME_TIMEOUT:
-
-        screen.fill((180,30,0))
-
-        title_font=pygame.font.Font(
-            pixel_font,
-            120,
-            bold=True
-        )
-
-        subtitle_font=pygame.font.Font(
-            pixel_font,
-            70,
-            bold=True
-        )
-
-        title=title_font.render(
-            "Time's up!!",
-            True,
-            (0,0,0)
-        )
-
-        subtitle=subtitle_font.render(
-            "Game Over...",
-            True,
-            (0,0,0)
-        )
-
-        screen.blit(
-            title,
-            (
-                WIDTH//2-title.get_width()//2,
-                HEIGHT//2-90
-            )
-        )
-
-        screen.blit(
-            subtitle,
-            (
-                WIDTH//2-subtitle.get_width()//2,
-                HEIGHT//2+20
-            )
-        )
-
-
+        if game_over_type==GAME_OVER_BY_DEATH:
+            screen.blit(game_over_frames[7],(0,0))
+        else:
+            screen.blit(timeup_frames[1],(0,0))
     pygame.display.update()
-
+    
     clock.tick(10)
