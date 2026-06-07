@@ -1,240 +1,233 @@
 import pygame
 import sys
+import random
 from systems.room import generate_room
 
 pygame.init()
+pixel_font = "assets/font/PixelOperator-Bold.ttf"
 
-WIDTH = 960
-HEIGHT = 540
+WIDTH=960
+HEIGHT=540
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen=pygame.display.set_mode((WIDTH,HEIGHT))
 pygame.display.set_caption("Life or Death")
+clock=pygame.time.Clock()
 
-clock = pygame.time.Clock()
-
-# =====================================
 # 遊戲狀態
-# =====================================
+GAME_PLAYING=0
+GAME_DIED=1
+GAME_TIMEOUT=2
+GAME_OVER_ANIMATION=3
+game_state=GAME_PLAYING
+GAME_OVER_BY_DEATH = 0
+GAME_OVER_BY_TIMEOUT = 1
 
-GAME_PLAYING = 0
-GAME_DIED = 1
-GAME_TIMEOUT = 2
+game_over_type = GAME_OVER_BY_DEATH
 
-game_state = GAME_PLAYING
+# 生命值
+MAX_LIVES=3
+lives=3
 
-# =====================================
+heart_img=pygame.image.load("assets/ui/heart.png")
+empty_heart_img=pygame.image.load("assets/ui/empty_heart.png")
+
+heart_img=pygame.transform.scale(heart_img,(40,40))
+empty_heart_img=pygame.transform.scale(empty_heart_img,(40,40))
+
 # 房間
-# =====================================
+room=generate_room()
+directions=["front","right","back","left"]
+current_view=0
 
-room = generate_room()
-
-directions = ["front", "right", "back", "left"]
-current_view = 0
-
-# =====================================
 # 計時器
-# =====================================
+ROOM_TIME_LIMIT=10
+room_start_time=pygame.time.get_ticks()
 
-ROOM_TIME_LIMIT = 10
-
-room_start_time = pygame.time.get_ticks()
-
-timer_font = pygame.font.SysFont(
-    "Courier New",
+timer_font=pygame.font.Font(
+    pixel_font,
     36,
-    bold=True
 )
 
-# =====================================
-# 圖片
-# =====================================
-
-door_base_img = pygame.image.load(
-    "assets/room/back.jpg"
-)
-door_base_img = pygame.transform.scale(
+# 背景
+door_base_img=pygame.image.load("assets/room/back.jpg")
+door_base_img=pygame.transform.scale(
     door_base_img,
-    (WIDTH, HEIGHT)
+    (WIDTH,HEIGHT)
 )
 
-wall_img = pygame.image.load(
-    "assets/room/wall.jpg"
-)
-wall_img = pygame.transform.scale(
+wall_img=pygame.image.load("assets/room/wall.jpg")
+wall_img=pygame.transform.scale(
     wall_img,
-    (WIDTH, HEIGHT)
+    (WIDTH,HEIGHT)
 )
 
-life_img = pygame.image.load(
-    "assets/room/life.jpg"
-)
+# 門大小
+SIGN_WIDTH=225
+SIGN_HEIGHT=275
 
-death_img = pygame.image.load(
-    "assets/room/death.jpg"
-)
+# 生門
+life_imgs=[]
 
-# 門圖案大小
-SIGN_WIDTH = 225
-SIGN_HEIGHT = 275
+for i in range(1,6):
 
-life_img = pygame.transform.scale(
-    life_img,
-    (SIGN_WIDTH, SIGN_HEIGHT)
-)
+    img=pygame.image.load(
+        f"assets/room/door/life_{i}.png"
+    )
 
-death_img = pygame.transform.scale(
-    death_img,
-    (SIGN_WIDTH, SIGN_HEIGHT)
-)
+    img=pygame.transform.scale(
+        img,
+        (SIGN_WIDTH,SIGN_HEIGHT)
+    )
 
-# 門圖案位置
-SIGN_X = 370
-SIGN_Y = 176
+    life_imgs.append(img)
 
-# 死亡畫面
+# 死門
+death_imgs=[]
 
-dead_image = pygame.image.load(
-    "assets/room/dead.jpg"
-)
+for i in range(1,6):
 
-dead_image = pygame.transform.scale(
-    dead_image,
-    (WIDTH, HEIGHT)
-)
+    img=pygame.image.load(
+        f"assets/room/door/death_{i}.png"
+    )
 
-# 時間到畫面
+    img=pygame.transform.scale(
+        img,
+        (SIGN_WIDTH,SIGN_HEIGHT)
+    )
 
-timesup_image = pygame.image.load(
-    "assets/room/timesup.jpg"
-)
+    death_imgs.append(img)
 
-timesup_image = pygame.transform.scale(
-    timesup_image,
-    (WIDTH, HEIGHT)
-)
+current_life_img=random.choice(life_imgs)
+current_death_img=random.choice(death_imgs)
 
-# 危險狀態閃爍計時器
+# 門位置
+SIGN_X=370
+SIGN_Y=176
 
-danger_alpha = 0
+# gogo動畫
+gogo_frames=[]
 
-# =====================================
-# 前進動畫
-# =====================================
+for i in range(1,6):
 
-gogo_frames = []
-
-for i in range(1, 6):
-
-    img = pygame.image.load(
+    img=pygame.image.load(
         f"assets/room/gogo/{i:03d}.jpg"
     )
 
-    img = pygame.transform.scale(
+    img=pygame.transform.scale(
         img,
-        (WIDTH, HEIGHT)
+        (WIDTH,HEIGHT)
     )
 
     gogo_frames.append(img)
 
-# =====================================
-# 畫房間
-# =====================================
+# game over 動畫
+game_over_frames=[]
 
+for i in range(1,9):
+    img=pygame.image.load(
+        f"assets/room/game_over/{i:03d}.png"
+    )
+    img=pygame.transform.scale(
+        img,
+        (WIDTH,HEIGHT)
+    )
+    game_over_frames.append(img)
+
+#time up動畫
+timeup_frames=[]
+
+for i in range(1,3):
+
+    img=pygame.image.load(
+        f"assets/room/timeup/{i:03d}.png"
+    )
+
+    img=pygame.transform.scale(
+        img,
+        (WIDTH,HEIGHT)
+    )
+
+    timeup_frames.append(img)
+
+# 畫房間
 def draw_room():
 
-    current_direction = directions[current_view]
+    current_direction=directions[current_view]
 
-    # 後方
-    if current_direction == "back":
-
-        screen.blit(
-            door_base_img,
-            (0, 0)
-        )
-
+    if current_direction=="back":
+        screen.blit(door_base_img,(0,0))
         return
 
-    room_type = room[current_direction]
+    room_type=room[current_direction]
 
-    # 牆壁
-    if room_type == "wall":
+    if room_type=="wall":
 
         screen.blit(
             wall_img,
-            (0, 0)
+            (0,0)
         )
 
-    # 生門
-    elif room_type == "life":
+    elif room_type=="life":
 
         screen.blit(
             door_base_img,
-            (0, 0)
+            (0,0)
         )
 
         screen.blit(
-            life_img,
-            (SIGN_X, SIGN_Y)
+            current_life_img,
+            (SIGN_X,SIGN_Y)
         )
 
-    # 死門
-    elif room_type == "death":
+    elif room_type=="death":
 
         screen.blit(
             door_base_img,
-            (0, 0)
+            (0,0)
         )
 
         screen.blit(
-            death_img,
-            (SIGN_X, SIGN_Y)
+            current_death_img,
+            (SIGN_X,SIGN_Y)
         )
 
-# =====================================
+
 # 門淡出動畫
-# =====================================
-
 def fade_door(selected_type):
 
-    if selected_type == "life":
-
-        original_img = life_img.copy()
-
+    if selected_type=="life":
+        original_img=current_life_img.copy()
     else:
+        original_img=current_death_img.copy()
 
-        original_img = death_img.copy()
-
-    for alpha in range(255, -1, -4):
+    for alpha in range(255,-1,-4):
 
         screen.blit(
             door_base_img,
-            (0, 0)
+            (0,0)
         )
 
-        temp = original_img.copy()
-
+        temp=original_img.copy()
         temp.set_alpha(alpha)
 
         screen.blit(
             temp,
-            (SIGN_X, SIGN_Y)
+            (SIGN_X,SIGN_Y)
         )
 
         pygame.display.update()
 
         pygame.time.delay(15)
 
-# =====================================
-# 前進動畫
-# =====================================
 
+# 前進動畫
 def play_gogo_animation():
 
     for frame in gogo_frames:
 
         screen.blit(
             frame,
-            (0, 0)
+            (0,0)
         )
 
         pygame.display.update()
@@ -243,272 +236,421 @@ def play_gogo_animation():
 
     pygame.time.delay(300)
 
-# =====================================
-# 主迴圈
-# =====================================
+def play_game_over_animation():
+
+    # ===== 001 =====
+    frame1 = game_over_frames[0]
+
+    for alpha in range(80,256,3):
+
+        temp = frame1.copy()
+        temp.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+        screen.blit(temp,(0,0))
+
+        pygame.display.update()
+
+        pygame.time.delay(15)
+
+    pygame.time.delay(500)
+
+
+    # ===== 002~004 =====
+    for i in range(1,4):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+
+        pygame.time.delay(200)
+
+
+    # ===== 005~006 =====
+    for i in range(4,6):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(240)
+
+    # ===== 006 → 007 =====
+
+    frame6 = game_over_frames[5]
+    frame7 = game_over_frames[6]
+
+    for alpha in range(50,256,2):
+
+        temp6 = frame6.copy()
+        temp6.set_alpha(255-alpha)
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp6,(0,0))
+        screen.blit(temp7,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(15)
+
+    # ===== 007 → 008 =====
+
+    frame8 = game_over_frames[7]
+
+    for alpha in range(0,256,3):
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(255-alpha)
+
+        temp8 = frame8.copy()
+        temp8.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp7,(0,0))
+        screen.blit(temp8,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(20)
+
+    pygame.event.pump()
+    pygame.time.delay(700)
+
+def play_timeout_game_over():
+    frame1 = timeup_frames[0]
+    frame2 = timeup_frames[1]
+    # ===== 001 淡入 =====
+    for alpha in range(20,256,2):
+        temp = frame1.copy()
+        temp.set_alpha(alpha)
+        screen.fill((0,0,0))
+        screen.blit(temp,(0,0))
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(15)
+    pygame.event.pump()
+    pygame.time.delay(500)
+
+    # 001 → 002 交叉淡入
+    for alpha in range(0,256,3):
+        temp1 = frame1.copy()
+        temp1.set_alpha(255-alpha)
+        temp2 = frame2.copy()
+        temp2.set_alpha(alpha)
+        screen.fill((0,0,0))
+        screen.blit(temp1,(0,0))
+        screen.blit(temp2,(0,0))
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(20)
+    # 停在 002
+    pygame.event.pump()
+    pygame.time.delay(1000)
+
+# 轉場畫面
+def show_message(
+    title,
+    subtitle,
+    bg_color,
+    title_color,
+    subtitle_color
+):
+
+    title_font=pygame.font.Font(
+        pixel_font,
+        120,
+    )
+
+    subtitle_font=pygame.font.Font(
+        pixel_font,
+        70,
+    )
+
+    screen.fill(bg_color)
+
+    title_text=title_font.render(
+        title,
+        True,
+        title_color
+    )
+
+    subtitle_text=subtitle_font.render(
+        subtitle,
+        True,
+        subtitle_color
+    )
+
+    screen.blit(
+        title_text,
+        (
+            WIDTH//2-title_text.get_width()//2,
+            HEIGHT//2-120
+        )
+    )
+
+    screen.blit(
+        subtitle_text,
+        (
+            WIDTH//2-subtitle_text.get_width()//2,
+            HEIGHT//2+40
+        )
+    )
+
+    pygame.display.update()
+
+    pygame.time.delay(2000)
 
 while True:
 
-    if game_state == GAME_PLAYING:
+    if game_state==GAME_PLAYING:
 
-        elapsed_time = (
+        elapsed_time=(
             pygame.time.get_ticks()
-            - room_start_time
-        ) / 1000
+            -room_start_time
+        )/1000
 
-        remaining_time = max(
+        remaining_time=max(
             0,
-            ROOM_TIME_LIMIT
-            - int(elapsed_time)
+            ROOM_TIME_LIMIT-int(elapsed_time)
         )
 
-        if remaining_time <= 0:
+        # 時間到
+        if remaining_time<=0:
 
-            game_state = GAME_TIMEOUT
+            lives-=1
+
+            if lives<=0:
+
+                play_timeout_game_over()
+                game_over_type=GAME_OVER_BY_TIMEOUT
+                game_state=GAME_OVER_ANIMATION
+
+            else:
+
+                show_message(
+                    "Time's up!!",
+                    f"You have {lives} lives left",
+                    (180,30,0),
+                    (0,0,0),
+                    (0,0,0)
+                )
+
+                current_view=0
+                room_start_time=pygame.time.get_ticks()
 
     else:
 
-        remaining_time = 0
+        remaining_time=0
 
-    # =================================
     # Event
-    # =================================
-
     for event in pygame.event.get():
 
-        if event.type == pygame.QUIT:
+        if event.type==pygame.QUIT:
 
             pygame.quit()
             sys.exit()
 
-        if (
-            event.type == pygame.KEYDOWN
-            and game_state == GAME_PLAYING
-        ):
+        if event.type==pygame.KEYDOWN and game_state==GAME_PLAYING:
 
-            # 向右看
+            if event.key==pygame.K_RIGHT:
 
-            if event.key == pygame.K_RIGHT:
+                current_view=(
+                    current_view+1
+                )%len(directions)
 
-                current_view = (
-                    current_view + 1
-                ) % len(directions)
+            elif event.key==pygame.K_LEFT:
 
-            # 向左看
+                current_view=(
+                    current_view-1
+                )%len(directions)
 
-            elif event.key == pygame.K_LEFT:
+            elif event.key==pygame.K_UP:
 
-                current_view = (
-                    current_view - 1
-                ) % len(directions)
+                current_direction=directions[current_view]
 
-            # 前進
+                if current_direction!="back":
 
-            elif event.key == pygame.K_UP:
-
-                current_direction = (
-                    directions[current_view]
-                )
-
-                if current_direction == "back":
-
-                    print(
-                        "後方不可前進"
-                    )
-
-                else:
-
-                    room_type = room[
-                        current_direction
-                    ]
+                    room_type=room[current_direction]
 
                     # 生門
+                    if room_type=="life":
 
-                    if room_type == "life":
-
-                        fade_door(
-                            "life"
-                        )
-
+                        fade_door("life")
                         play_gogo_animation()
 
-                        room = generate_room()
+                        room=generate_room()
 
-                        current_view = 0
-
-                        room_start_time = (
-                            pygame.time.get_ticks()
+                        current_life_img=random.choice(
+                            life_imgs
                         )
+
+                        current_death_img=random.choice(
+                            death_imgs
+                        )
+
+                        current_view=0
+
+                        room_start_time=pygame.time.get_ticks()
 
                     # 死門
+                    elif room_type=="death":
 
-                    elif room_type == "death":
-
-                        fade_door(
-                            "death"
-                        )
-
+                        fade_door("death")
                         play_gogo_animation()
 
-                        game_state = GAME_DIED
+                        lives-=1
 
-                    # 牆壁
+                        if lives<=0:
+                            play_game_over_animation()
+                            game_over_type=GAME_OVER_BY_DEATH
+                            game_state=GAME_OVER_ANIMATION
 
-                    else:
+                        else:
 
-                        print(
-                            "這裡是牆壁"
-                        )
+                            show_message(
+                                "You're dead",
+                                f"You have {lives} lives left",
+                                (0,0,0),
+                                (255,0,0),
+                                (255,0,0)
+                            )
 
-    # =================================
+                            current_view=0
+
+                            room_start_time=pygame.time.get_ticks()
+
     # Draw
-    # =================================
-
-    if game_state == GAME_PLAYING:
+    if game_state==GAME_PLAYING:
 
         draw_room()
 
-        timer_color = (
-            (255, 0, 0)
-            if remaining_time <= 10
-            else (255, 255, 255)
-        )
-        border_color = (
-            (255, 0, 0)
-            if remaining_time <= 10
-            else (255, 255, 255)
-        )
+                # Timer
+        timer_color=(255,0,0) if remaining_time<=10 else (255,255,255)
+        border_color=timer_color
 
-        timer_text = timer_font.render(
+        timer_text=timer_font.render(
             f"{remaining_time:02d}",
             True,
             timer_color
         )
-        padding = 12
 
+        padding=12
         box_x=15
         box_y=15
 
-        box_width = (
-            timer_text.get_width() + padding * 2            
-        )
-        box_height = (
-            timer_text.get_height() + padding * 2            
-        )
+        box_width=timer_text.get_width()+padding*2
+        box_height=timer_text.get_height()+padding*2
 
-        box_surface = pygame.Surface(
-            (box_width, box_height)
+        box_surface=pygame.Surface(
+            (box_width,box_height)
         )
 
         box_surface.set_alpha(180)
-
-        box_surface.fill((0, 0, 0))
+        box_surface.fill((0,0,0))
 
         screen.blit(
             box_surface,
-            (box_x, box_y)
+            (box_x,box_y)
         )
 
-        # 白色邊框
         pygame.draw.rect(
-            screen,border_color,
-            (
-                box_x,
-                box_y,
-                box_width,
-                box_height
-            ),
+            screen,
+            border_color,
+            (box_x,box_y,box_width,box_height),
             2
         )
 
         screen.blit(
             timer_text,
-            (
-                box_x + padding,
-                box_y + padding
-            )
+            (box_x+padding,box_y+padding)
         )
-        # ==========================
-        # 危險紅色閃爍邊框
-        # ==========================
 
-        if remaining_time <= 10:
 
-            pulse = abs(
-                pygame.time.get_ticks() % 1000 - 500
-            ) / 500
+        # 愛心
+        for i in range(MAX_LIVES):
 
-            base_alpha = int(
-                150 * (1 - pulse)
+            x=WIDTH-48*(MAX_LIVES-i)-10
+            y=20
+
+            if i<lives:
+
+                screen.blit(
+                    heart_img,
+                    (x,y)
+                )
+
+            else:
+
+                screen.blit(
+                    empty_heart_img,
+                    (x,y)
+                )
+
+
+        # 危險紅色邊框
+        if remaining_time<=10:
+
+            pulse=abs(
+                pygame.time.get_ticks()%1000-500
+            )/500
+
+            base_alpha=int(
+                150*(1-pulse)
             )
 
-            warning_surface = pygame.Surface(
-                (WIDTH, HEIGHT),
+            warning_surface=pygame.Surface(
+                (WIDTH,HEIGHT),
                 pygame.SRCALPHA
             )
 
-            border_width = 50
+            border_width=100
+
             for i in range(border_width):
 
-                alpha = int(
-                    base_alpha *
-                    ((border_width - i) / border_width)
+                alpha=int(
+                    base_alpha*
+                    ((border_width-i)/border_width)
                 )
 
-                color = (255,0,0,alpha)
+                color=(100,0,0,alpha)
 
-                # 上
-                pygame.draw.line(
+                pygame.draw.rect(
                     warning_surface,
                     color,
-                    (0,i),
-                    (WIDTH,i)
+                    (
+                        i,
+                        i,
+                        WIDTH-2*i,
+                        HEIGHT-2*i
+                    ),
+                    1
                 )
 
-                # 下
-                pygame.draw.line(
-                    warning_surface,
-                    color,
-                    (0,HEIGHT - i),
-                    (WIDTH,HEIGHT - i)
-                )
-
-                # 左
-                pygame.draw.line(
-                    warning_surface,
-                    color,
-                    (i,0),
-                    (i,HEIGHT)
-                )
-
-                # 右
-                pygame.draw.line(
-                    warning_surface,
-                    color,
-                    (WIDTH - i,0),
-                    (WIDTH - i,HEIGHT)
-                )
-
-                screen.blit(
-                    warning_surface,
-                    (0, 0)
-                )
-
-
-    elif game_state == GAME_DIED:
-
-        screen.blit(
-            dead_image,
-            (0, 0)
-        )
-
-    elif game_state == GAME_TIMEOUT:
-
-        screen.blit(
-            timesup_image,
-            (0, 0)
-        )
-
+            screen.blit(
+                warning_surface,
+                (0,0)
+            )
+    
+    elif game_state==GAME_OVER_ANIMATION:
+        if game_over_type==GAME_OVER_BY_DEATH:
+            screen.blit(game_over_frames[7],(0,0))
+        else:
+            screen.blit(timeup_frames[1],(0,0))
     pygame.display.update()
-
+    
     clock.tick(10)
