@@ -1,6 +1,7 @@
 # systems/intro.py
 
 import pygame
+import data.player_data as player_data
 
 class StoryScene:
 
@@ -17,7 +18,8 @@ class StoryScene:
 
         self.char_index = 0
 
-        self.char_delay = 40
+        
+        self.char_delay = player_data.TEXT_SPEED
 
         self.last_char_time = pygame.time.get_ticks()
 
@@ -117,6 +119,7 @@ class StoryScene:
 
     def update_text(self):
 
+        self.char_delay = player_data.TEXT_SPEED
         current_text = self.scenes[self.index]["text"]
 
         if self.char_index >= len(current_text):
@@ -219,10 +222,11 @@ class StoryScene:
             )
 
             # 名字
+            from data.player_data import PLAYER_NAME
             name_surface = self.name_font.render(
-                "Joanna",
+                PLAYER_NAME,
                 True,
-                (255, 255, 255)
+                (255,255,255)
             )
 
             screen.blit(
