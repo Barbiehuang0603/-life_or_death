@@ -18,6 +18,7 @@ clock=pygame.time.Clock()
 GAME_PLAYING=0
 GAME_DIED=1
 GAME_TIMEOUT=2
+GAME_OVER_ANIMATION=3
 game_state=GAME_PLAYING
 
 # 生命值
@@ -117,6 +118,19 @@ for i in range(1,6):
 
     gogo_frames.append(img)
 
+# game over 動畫
+game_over_frames=[]
+
+for i in range(1,9):
+    img=pygame.image.load(
+        f"assets/room/game_over/{i:03d}.png"
+    )
+    img=pygame.transform.scale(
+        img,
+        (WIDTH,HEIGHT)
+    )
+    game_over_frames.append(img)
+
 # 畫房間
 def draw_room():
 
@@ -204,6 +218,100 @@ def play_gogo_animation():
 
     pygame.time.delay(300)
 
+def play_game_over_animation():
+
+    # ===== 001 =====
+    frame1 = game_over_frames[0]
+
+    for alpha in range(80,256,3):
+
+        temp = frame1.copy()
+        temp.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+        screen.blit(temp,(0,0))
+
+        pygame.display.update()
+
+        pygame.time.delay(15)
+
+    pygame.time.delay(500)
+
+
+    # ===== 002~004 =====
+    for i in range(1,4):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+
+        pygame.time.delay(200)
+
+
+    # ===== 005~006 =====
+    for i in range(4,6):
+
+        screen.blit(
+            game_over_frames[i],
+            (0,0)
+        )
+
+        pygame.display.update()
+        pygame.event.pump()
+        pygame.time.delay(240)
+
+    # ===== 006 → 007 =====
+
+    frame6 = game_over_frames[5]
+    frame7 = game_over_frames[6]
+
+    for alpha in range(50,256,2):
+
+        temp6 = frame6.copy()
+        temp6.set_alpha(255-alpha)
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp6,(0,0))
+        screen.blit(temp7,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(15)
+
+    # ===== 007 → 008 =====
+
+    frame8 = game_over_frames[7]
+
+    for alpha in range(0,256,3):
+
+        temp7 = frame7.copy()
+        temp7.set_alpha(255-alpha)
+
+        temp8 = frame8.copy()
+        temp8.set_alpha(alpha)
+
+        screen.fill((0,0,0))
+
+        screen.blit(temp7,(0,0))
+        screen.blit(temp8,(0,0))
+
+        pygame.display.update()
+
+        pygame.event.pump()
+
+        pygame.time.delay(20)
+
+    pygame.event.pump()
+    pygame.time.delay(700)
 
 # 轉場畫面
 def show_message(
@@ -359,8 +467,8 @@ while True:
                         lives-=1
 
                         if lives<=0:
-
-                            game_state=GAME_DIED
+                            play_game_over_animation()
+                            game_state=GAME_OVER_ANIMATION
 
                         else:
 
@@ -488,49 +596,14 @@ while True:
                 (0,0)
             )
     
-    elif game_state==GAME_DIED:
-
-        screen.fill((0,0,0))
-
-        title_font=pygame.font.Font(
-            pixel_font,
-            120,
-            bold=True
-        )
-
-        subtitle_font=pygame.font.Font(
-            pixel_font,
-            70,
-            bold=True
-        )
-
-        title=title_font.render(
-            "You're dead",
-            True,
-            (255,0,0)
-        )
-
-        subtitle=subtitle_font.render(
-            "Game Over...",
-            True,
-            (255,0,0)
-        )
-
+    elif game_state==GAME_OVER_ANIMATION:
         screen.blit(
-            title,
-            (
-                WIDTH//2-title.get_width()//2,
-                HEIGHT//2-90
-            )
+            game_over_frames[7],
+            (0,0)
         )
 
-        screen.blit(
-            subtitle,
-            (
-                WIDTH//2-subtitle.get_width()//2,
-                HEIGHT//2+20
-            )
-        )
+  
+
 
 
     elif game_state==GAME_TIMEOUT:
