@@ -715,18 +715,25 @@ while True:
             screen.blit(warning_surface, (0, 0))
 
     elif game_state == GAME_OVER:
-
-        draw_game_over(
+        # 1. 執行並檢查 Game Over 動畫是否已經全部走完、且在定格畫面待滿了 2 秒？
+        is_animation_done = draw_game_over(
             screen,
             game_over_reason,
             GAME_OVER_BY_DEATH,
             GAME_OVER_BY_TIMEOUT
         )
         
-        reset_gameover()
+        if is_animation_done:
+            # 安全切斷 Game Over 慘叫的背景音效
+            stop_all_audio()
+            
+            reset_gameover()
         
-        game_state = GAME_MENU
-
+            played_intro_music = False
+            
+            # 順利大撤退，回到主選單
+            game_state = GAME_MENU
+            
     elif game_state == GAME_OUTRO:
         outro.update()
         outro.draw(screen)
