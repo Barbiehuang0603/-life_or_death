@@ -37,7 +37,8 @@ class MenuScene:
             self.background,
             (width, height)
         )
-
+        self.option_rects = []
+        
     def draw(self, screen):
 
         screen.blit(
@@ -61,6 +62,7 @@ class MenuScene:
         )
 
         # 選項
+        self.option_rects = []
         for i, option in enumerate(self.options):
 
             color = (
@@ -75,13 +77,17 @@ class MenuScene:
                 color
             )
 
+            x = self.width//2 - text.get_width()//2
+            y = 190 + i*70
             screen.blit(
                 text,
-                (
-                    self.width//2 - text.get_width()//2,
-                    190 + i*70
-                )
+                (x, y)
             )
+
+            rect = text.get_rect(topleft=(x, y))
+
+            self.option_rects.append(rect)
+
     def handle_event(self, event):
 
         if event.type == pygame.KEYDOWN:
@@ -101,6 +107,28 @@ class MenuScene:
             elif event.key == pygame.K_RETURN:
 
                 return self.options[self.selected]
+        elif event.type == pygame.MOUSEMOTION:
+
+            mouse_pos = event.pos
+
+            for i, rect in enumerate(self.option_rects):
+
+                if rect.collidepoint(mouse_pos):
+
+                    self.selected = i
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+
+            if event.button == 1:
+
+                mouse_pos = event.pos
+
+                for i, rect in enumerate(self.option_rects):
+
+                    if rect.collidepoint(mouse_pos):
+
+                        self.selected = i
+
+                        return self.options[i]
 
         return None
     

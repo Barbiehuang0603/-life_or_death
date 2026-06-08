@@ -56,12 +56,166 @@ class SettingScene:
             self.background,
             (width, height)
         )
-
+        self.volume_x1 = 500
+        self.volume_x2 = 700
+        self.volume_y = 370
+        self.item_rects = []
+        self.speed_rects = []
+        self.return_rect = None
+        self.dragging_volume = False
 
     def handle_event(self, event):
 
+        if event.type == pygame.MOUSEMOTION:
+
+            mouse_pos = event.pos
+
+            # Name
+            if self.item_rects and (
+                self.item_rects[0].collidepoint(mouse_pos)
+                or self.item_rects[1].collidepoint(mouse_pos)
+            ):
+
+                self.selected = 0
+
+            # Text Speed 左邊標題
+            if self.speed_label_rect.collidepoint(mouse_pos):
+
+                self.selected = 1
+
+            # Text Speed 右邊三個選項
+            for i, rect in enumerate(self.speed_rects):
+
+                if rect.collidepoint(mouse_pos):
+
+                    self.selected = 1
+
+                    player_data.TEXT_SPEED = (
+                        self.speed_values[i]
+                    )
+
+                    return "NONE"
+
+            # BGM Volume 左邊標題
+            if self.volume_label_rect.collidepoint(mouse_pos):
+
+                self.selected = 2
+
+            if (self.volume_x1 <= mouse_pos[0] <= self.volume_x2
+                and abs(mouse_pos[1] - self.volume_y) <= 15
+            ):
+                self.selected = 2
+
+            # Return
+            if self.return_rect and self.return_rect.collidepoint(mouse_pos):
+
+                self.selected = 3
+            if self.dragging_volume:
+
+                line_x1 = 500
+                line_x2 = 700
+
+                x = max(
+                    line_x1,
+                    min(
+                        mouse_pos[0],
+                        line_x2
+                    )
+                )
+
+                player_data.BGM_VOLUME = int(
+                    (x-line_x1)/(line_x2-line_x1)*100
+                )
+
+        # ==========================
+        # 滑鼠點擊
+        # ==========================
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            if event.button == 1:
+
+                mouse_pos = event.pos
+
+                # Name
+                if (self.item_rects
+                    and (
+                        self.item_rects[0].collidepoint(mouse_pos)
+                        or self.item_rects[1].collidepoint(mouse_pos)
+                    )
+                ):
+
+                    self.selected = 0
+                    self.input_mode = True
+
+                    return "NONE"
+
+                # Text Speed 左邊標題
+                if self.speed_label_rect.collidepoint(mouse_pos):
+
+                    self.selected = 1
+
+                # Text Speed 右邊三個選項
+                for i, rect in enumerate(self.speed_rects):
+
+                    if rect.collidepoint(mouse_pos):
+
+                        self.selected = 1
+
+                        player_data.TEXT_SPEED = (
+                            self.speed_values[i]
+                        )
+
+                        return "NONE"
+                #volume
+                if self.volume_label_rect.collidepoint(mouse_pos):
+
+                    self.selected = 2
+
+                if (
+                    self.volume_x1 <= mouse_pos[0] <= self.volume_x2
+                    and abs(mouse_pos[1] - self.volume_y) <= 15
+                ):
+
+                    self.selected = 2
+
+                    player_data.BGM_VOLUME = int(
+                        (mouse_pos[0]-self.volume_x1)
+                        / (self.volume_x2-self.volume_x1)
+                        * 100
+                    )
+
+                # ===== 點圓球拖曳 =====
+                knob_x = (
+                    self.volume_x1
+                    + (self.volume_x2-self.volume_x1)
+                    * player_data.BGM_VOLUME
+                    / 100
+                )
+
+                if (
+                    abs(mouse_pos[0]-knob_x) <= 15
+                    and abs(mouse_pos[1]-self.volume_y) <= 15
+                ):
+
+                    self.dragging_volume = True
+                
+                                
+                # Return
+                if self.return_rect and self.return_rect.collidepoint(mouse_pos):
+
+                    self.selected = 3
+
+                    return "BACK"
+
+        if event.type == pygame.MOUSEBUTTONUP:
+
+            self.dragging_volume = False
+
+
         if event.type != pygame.KEYDOWN:
             return "NONE"
+        
 
         # ==========================
         # 輸入名字模式
@@ -219,6 +373,9 @@ class SettingScene:
                 150
             )
         )
+        name_label_rect = label.get_rect(
+            topleft=(label_x,150)
+        )
 
         name_text = player_data.PLAYER_NAME
 
@@ -238,6 +395,11 @@ class SettingScene:
                 150
             )
         )
+
+        name_rect = name_surface.get_rect(
+            topleft=(value_x,150)
+        )
+        self.item_rects = [name_label_rect, name_rect]
 
         if self.selected == 0:
 
@@ -287,6 +449,10 @@ class SettingScene:
             )
         )
 
+        self.speed_label_rect = label.get_rect(
+            topleft=(label_x,260)
+        )
+
         speed_y = 260
         speed_x_positions = [
             value_x,
@@ -294,6 +460,7 @@ class SettingScene:
             value_x + 200
         ]
 
+        self.speed_rects = []
         for i in range(3):
 
             is_current = (
@@ -321,7 +488,15 @@ class SettingScene:
                 )
             )
 
+            rect = text.get_rect(
+                topleft=(
+                    speed_x_positions[i],
+                    speed_y
+                )
+            )
 
+            self.speed_rects.append(rect)
+    
         # ==========================
         # BGM Volume
         # ==========================
@@ -346,21 +521,25 @@ class SettingScene:
             )
         )
 
-        line_x1 = value_x
-        line_x2 = value_x + 200
-        line_y = 370
+        self.volume_label_rect = label.get_rect(
+            topleft=(label_x,350)
+        )
+
+        self.volume_x1 = value_x
+        self.volume_x2 = value_x + 200
+        self.volume_y = 370
 
         pygame.draw.line(
             screen,
             self.gray,
-            (line_x1, line_y),
-            (line_x2, line_y),
+            (self.volume_x1, self.volume_y),
+            (self.volume_x2, self.volume_y),
             4
         )
 
         knob_x = (
-            line_x1
-            + (line_x2 - line_x1)
+            self.volume_x1
+            + (self.volume_x2 - self.volume_x1)
             * player_data.BGM_VOLUME
             / 100
         )
@@ -370,7 +549,7 @@ class SettingScene:
             self.dark_red,
             (
                 int(knob_x),
-                line_y
+                self.volume_y
             ),
             10
         )
@@ -384,7 +563,7 @@ class SettingScene:
         screen.blit(
             volume_text,
             (
-                line_x2 + 30, 356
+                self.volume_x2 + 30, 356
             )
         )
 
@@ -415,6 +594,13 @@ class SettingScene:
         screen.blit(
             return_surface,
             (
+                self.width // 2 - return_surface.get_width() // 2,
+                450
+            )
+        )
+
+        self.return_rect = return_surface.get_rect(
+            topleft=(
                 self.width // 2 - return_surface.get_width() // 2,
                 450
             )
