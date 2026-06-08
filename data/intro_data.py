@@ -212,10 +212,37 @@ INTRO_SCENES = [
     },
 
     {
+        "image": "assets/intro/IMG_2766.PNG",
+        "text": "",
+        "auto": True,
+        "duration": 1000
+    },
+
+    {
+        "image": "assets/intro/IMG_2765.PNG",
+        "text": "",
+        "auto": True,
+        "duration": 1000
+    },
+
+    {
+        "image": "assets/intro/IMG_2767.PNG",
+        "text": "今際之國...這是哪裡啊",
+        "auto": False,
+    },
+
+    {
         "image": "assets/intro/IMG_2729.PNG",
         "text": "",
         "auto": True,
         "duration": 1500
+    },
+
+    {
+        "image": "assets/intro/IMG_2723.PNG",
+        "text": "",
+        "auto": True,
+        "duration": 1000
     },
 
     {
@@ -228,6 +255,13 @@ INTRO_SCENES = [
         "image": "assets/intro/IMG_2716.PNG",
         "text": "這是開玩笑吧?怎麼可能會真的死掉",
         "auto": False
+    },
+
+    {
+        "image": "assets/intro/IMG_2724.PNG",
+        "text": "",
+        "auto": True,
+        "duration": 1000
     },
 
     {
@@ -310,6 +344,13 @@ INTRO_SCENES = [
         "text": "",
         "auto": True,
         "duration": 167
+    },
+
+    {
+        "image": "assets/room/gogo/005.jpg",
+        "text": "",
+        "auto": True,
+        "duration": 3000
     }
 
 ]
