@@ -98,6 +98,18 @@ class StoryScene:
                 surface
             )
 
+    def reset(self):
+
+        self.index = 0
+        self.finished = False
+
+        self.displayed_text = ""
+        self.char_index = 0
+
+        now = pygame.time.get_ticks()
+
+        self.last_char_time = now
+        self.last_change_time = now
 
     def next_scene(self):
 

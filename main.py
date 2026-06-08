@@ -3,6 +3,16 @@ import pygame
 import sys
 from map_generator_wrapper import generate_strict_path, MAP_SIZE
 from systems.room import generate_room
+from systems.observer_scene import draw_observer_map
+from systems.gameover_scene import ( draw_game_over, init_gameover)
+from systems.room_scene import( draw_room, fade_door, play_gogo_animation)
+
+from systems.menu import MenuScene
+from systems.setting import SettingScene
+from systems.story_scenes import StoryScene
+
+from data.intro_data import INTRO_SCENES
+from data.outro_data import OUTRO_SCENES
 import random
 
 pixel_font = "assets/font/PixelOperator-Bold.ttf"
@@ -17,21 +27,36 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("生死門 - Life or Death")
 clock = pygame.time.Clock()
 
+menu = MenuScene(WIDTH, HEIGHT)
+
+setting = SettingScene(WIDTH, HEIGHT)
+
+intro = StoryScene( WIDTH, HEIGHT, INTRO_SCENES)
+
+outro = StoryScene(WIDTH, HEIGHT, OUTRO_SCENES)
+
 # =====================================
 # ⭐ 遊戲狀態：加入看地圖階段
 # =====================================
 
-GAME_OBSERVING = 0  # 階段 0：開場看地圖 10 秒
-GAME_PLAYING = 1    # 階段 1：第一人稱遊戲中
-GAME_OVER = 2       # 階段 2：結束
-GAME_CLEAR = 3      # 階段 3：通關
+GAME_MENU = 0        # 首頁
+GAME_SETTING = 1     # 設定
+GAME_HELP = 2
+GAME_INTRO = 3       # 開頭劇情
+GAME_OBSERVING = 4   # 開場看地圖 10 秒
+GAME_PLAYING = 5     # 第一人稱遊戲中
+GAME_OVER = 6        # 結束
+GAME_OUTRO = 7       # 結尾劇情
+GAME_CLEAR = 8       # 通關
+
+
 GAME_OVER_BY_DEATH = 0    # 全部命都用完（走錯門/墜樓）
 GAME_OVER_BY_TIMEOUT = 1  # 時間用完（30秒超時）
 
 MAX_LIVES=3
 lives=3
 
-game_state = GAME_OBSERVING  #  開局預設為看地圖狀態
+game_state = GAME_MENU  #  開局預設為首頁
 game_over_reason = None
 heart_img=pygame.image.load("assets/ui/heart.png")
 empty_heart_img=pygame.image.load("assets/ui/empty_heart.png")
@@ -193,20 +218,18 @@ directions = ["front", "right", "back", "left"]
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.mixer.init()
+init_gameover()
 
-sound_10s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-ten-seconds.mp3"
-sound_30s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\60-second-countdown.mp3"
-sound_5s_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\countdown-5-to-1.mp3"
-sound_gameover_path = r"C:\Barbie\computerprogramming\project\-life_or_death\sound\gameover.mp3"
+sound_10s_path = r"C:\Users\joooa\OneDrive\桌面\程設專題\-life_or_death\sound\countdown-ten-seconds.mp3"
+sound_30s_path = r"C:\Users\joooa\OneDrive\桌面\程設專題\-life_or_death\sound\60-second-countdown.mp3"
+sound_5s_path = r"C:\Users\joooa\OneDrive\桌面\程設專題\-life_or_death\sound\countdown-5-to-1.mp3"
 observe_10s = pygame.mixer.Sound(sound_10s_path)
 bgm_30s = pygame.mixer.Sound(sound_30s_path)
 cue_5s = pygame.mixer.Sound(sound_5s_path)
-bgm_gameover = pygame.mixer.Sound(sound_gameover_path)
 # 狀態鎖：確保在同一個房間/生命週期裡，音效各自只會被 play() 一次
 played_10s_observe = False
 played_30s_bgm = False
 played_5s_cue = False
-played_gameover = False
 def reset_room_audio():
     """每次邁入新房間、原地復活、或超時計時重置時呼叫，切斷舊聲音並解開控制鎖"""
     global played_30s_bgm, played_5s_cue
@@ -241,262 +264,8 @@ timer_font.set_bold(True)
 # =====================================
 # main.py 裡面的 draw_observer_map 函式全面優化版
 
-def draw_observer_map(remaining_time):
-    screen.fill((30, 30, 30)) # 深灰色背景
-    
-    grid_size = 75  
-    # 稍微把左邊的地圖往左挪一點，留更多空間給右邊的文字
-    start_draw_x = 80 
-    start_draw_y = (HEIGHT - (MAP_SIZE * grid_size)) // 2
-    
-    # ─── 繪製 5x5 地圖 ───
-    for y in range(MAP_SIZE):
-        for x in range(MAP_SIZE):
-            rect = pygame.Rect(start_draw_x + x * grid_size, start_draw_y + y * grid_size, grid_size, grid_size)
-            
-            if (x, y) == start_pos:
-                pygame.draw.rect(screen, (150, 40, 20), rect) # 起點
-                p1 = (rect.centerx, rect.top + 15)              
-                p2 = (rect.left + 15, rect.bottom - 15)          
-                p3 = (rect.right - 15, rect.bottom - 15)         
-                pygame.draw.polygon(screen, (255, 255, 255), [p1, p2, p3])
-                text = map_font.render("起", True, (0, 0, 0))
-                screen.blit(text, (rect.x + (grid_size - text.get_width())//2, rect.y + (grid_size - text.get_height())//2 + 10))
-                
-            elif (x, y) == end_pos:
-                pygame.draw.rect(screen, (0, 100, 180), rect) # 終點
-                text = map_font.render("終", True, (255, 255, 255))
-                screen.blit(text, (rect.x + (grid_size - text.get_width())//2, rect.y + (grid_size - text.get_height())//2))
-            elif dungeon_map[y][x] == 1:
-                pygame.draw.rect(screen, (220, 150, 0), rect) # 通路
-            else:
-                pygame.draw.rect(screen, (60, 60, 60), rect) # 牆壁
-                
-            pygame.draw.rect(screen, (150, 150, 150), rect, 1)
-            
-    # ─── 🚀 右側文字排版優化 🚀 ───
-    
-    # 為了防止超出邊界，我們在這裡建立一個專門給提示台詞用的小一號字體
-    hint_font = pygame.font.SysFont("microsoftjhenghei", 24)
-    hint_font.set_bold(True)
-    if remaining_time > 5:
-        status_color = (255, 255, 255)
-        hint_color = (200, 200, 200)
-        time_color = (0, 255, 0)
-        title_str = "【 遊戲初始化：地圖掃描 】"
-        hint_str1 = "白色 ▲ 為初始朝向。選錯門即刻處決。"
-        hint_str2 = "把這條唯一的通路烙印在腦袋裡..."
-    elif remaining_time > 3:
-        status_color = (255, 128, 0)   
-        hint_color = (255, 128, 0)
-        time_color = (255, 128, 0)
-        title_str = "【 警告：掃描即將結束 】"
-        hint_str1 = "天界雷射已就位，正在鎖定玩家位置。"
-        hint_str2 = "時間不夠了...你真的全部記住了嗎？！"
-    else:
-        is_blink = (pygame.time.get_ticks() % 400) > 200
-        status_color = (255, 0, 0) if is_blink else (100, 0, 0)
-        hint_color = (255, 50, 50)
-        time_color = (255, 0, 0)
-        title_str = "【 EXTREME WARNING 】"
-        hint_str1 = "系統即將強制關閉！準備直面生死！"
-        hint_str2 = "倒數結束後，回頭的路將化為火海。"
-
-    # 渲染文字
-    title_surface = map_font.render(title_str, True, status_color)
-    hint1_surface = hint_font.render(hint_str1, True, hint_color) # 改用 hint_font
-    hint2_surface = hint_font.render(hint_str2, True, (150, 150, 150)) # 改用 hint_font
-    
-    time_label = f" TIME: {remaining_time:02d}s " if remaining_time <= 3 else f"TIME: {remaining_time:02d}s"
-    time_surface = timer_font.render(time_label, True, time_color)
-    
-    # 將文字起點往左移動到 500 的位置，確保右邊有 460 像素的超大安全空間不越界
-    text_start_x = 500
-    screen.blit(title_surface, (text_start_x, HEIGHT // 2 - 110))
-    screen.blit(hint1_surface, (text_start_x, HEIGHT // 2 - 50))
-    screen.blit(hint2_surface, (text_start_x, HEIGHT // 2 - 10))
-    screen.blit(time_surface, (text_start_x, HEIGHT // 2 + 50))
-# =====================================
-# 前進動畫
-# =====================================
-gogo_frames = []
-for i in range(1, 6):
-    img = pygame.transform.scale(pygame.image.load(f"assets/room/gogo/{i:03d}.jpg"), (WIDTH, HEIGHT))
-    gogo_frames.append(img)
-
-# =====================================
-# 畫房間
-# =====================================
-def draw_room():
-    # 🌟 真正的第一人稱物理查表：你面向哪個絕對方位，就直接畫那面牆的裝潢！
-    # 0=北, 1=東, 2=南, 3=西
-    actual_world_dir = current_view 
-
-    room_type = world_room[actual_world_dir]
-    
-    if room_type == "wall":
-        # 🧱 只有這面牆是水泥死牆，才畫牆壁
-        screen.blit(wall_img, (0, 0))
-    elif room_type == "back":
-        # 🚪 只有在來時路的方位，才畫乾淨的來時大門（不貼生死牌）
-        screen.blit(door_base_img, (0, 0))
-    else:
-        # 🃏 如果是門（door），則在門底圖上疊加貼上生門/死門欺敵圖片！
-        screen.blit(door_base_img, (0, 0))
-        if world_photos[actual_world_dir] is not None:
-            screen.blit(world_photos[actual_world_dir], (SIGN_X, SIGN_Y))
-
-def fade_door(selected_type):
-    # 動態開門動畫也完全比照辦理
-    actual_world_dir = current_view
-    room_type = world_room[actual_world_dir]
-    
-    if room_type == "back":
-        original_img = door_base_img.copy()
-        for alpha in range(255, -1, -4):
-            screen.blit(wall_img, (0, 0))
-            temp = original_img.copy()
-            temp.set_alpha(alpha)
-            screen.blit(temp, (0, 0))
-            pygame.display.update()
-            pygame.time.delay(15)
-    else:
-        if world_photos[actual_world_dir] is not None:
-            original_img = world_photos[actual_world_dir].copy()
-            for alpha in range(255, -1, -4):
-                screen.blit(door_base_img, (0, 0))
-                temp = original_img.copy()
-                temp.set_alpha(alpha)
-                screen.blit(temp, (SIGN_X, SIGN_Y))
-                pygame.display.update()
-                pygame.time.delay(15)
-            
-game_over_frames=[]
-
-for i in range(1,9):
-    img=pygame.image.load(
-        f"assets/room/game_over/{i:03d}.png"
-    )
-    img=pygame.transform.scale(
-        img,
-        (WIDTH,HEIGHT)
-    )
-    game_over_frames.append(img)
-
-timeup_frames=[]
-for i in range(1,3):
-    img=pygame.image.load(
-        f"assets/room/timeup/{i:03d}.png"
-    )
-    img=pygame.transform.scale(
-        img,
-        (WIDTH,HEIGHT)
-    )
-    timeup_frames.append(img)
-
-def play_timeout_game_over():
-    global played_gameover
-    frame1 = timeup_frames[0]
-    frame2 = timeup_frames[1]
-    for alpha in range(20,256,2):
-        temp = frame1.copy()
-        temp.set_alpha(alpha)
-        screen.fill((0,0,0))
-        screen.blit(temp,(0,0))
-        pygame.display.update()
-        pygame.event.pump()
-        pygame.time.delay(15)
-    pygame.event.pump()
-    pygame.time.delay(500)
-    for alpha in range(0,256,3):
-        temp1 = frame1.copy()
-        temp1.set_alpha(255-alpha)
-        temp2 = frame2.copy()
-        temp2.set_alpha(alpha)
-        screen.fill((0,0,0))
-        screen.blit(temp1,(0,0))
-        screen.blit(temp2,(0,0))
-        pygame.display.update()
-        pygame.event.pump()
-        pygame.time.delay(20)
-        if not played_gameover:
-            bgm_gameover.play()
-            played_gameover = True
-    pygame.event.pump()
-    pygame.time.delay(1000)
 
 
-def play_game_over_animation():
-    global played_gameover
-    # ===== 001 =====
-    frame1 = game_over_frames[0]
-    for alpha in range(80,256,3):
-        temp = frame1.copy()
-        temp.set_alpha(alpha)
-        screen.fill((0,0,0))
-        screen.blit(temp,(0,0))
-        pygame.display.update()
-        pygame.time.delay(15)
-    pygame.time.delay(500)
-    # ===== 002~004 =====
-    for i in range(1,4):
-        screen.blit(
-            game_over_frames[i],
-            (0,0)
-        )
-        pygame.display.update()
-        pygame.time.delay(200)
-    # ===== 005~006 =====
-    for i in range(4,6):
-        screen.blit(
-            game_over_frames[i],
-            (0,0)
-        )
-        pygame.display.update()
-        pygame.event.pump()
-        pygame.time.delay(240)
-    # ===== 006 007 =====
-    frame6 = game_over_frames[5]
-    frame7 = game_over_frames[6]
-    for alpha in range(50,256,2):
-        temp6 = frame6.copy()
-        temp6.set_alpha(255-alpha)
-        temp7 = frame7.copy()
-        temp7.set_alpha(alpha)
-        screen.fill((0,0,0))
-        screen.blit(temp6,(0,0))
-        screen.blit(temp7,(0,0))
-        pygame.display.update()
-        pygame.event.pump()
-        pygame.time.delay(15)
-    # ===== 007 ~008 =====
-    frame8 = game_over_frames[7]
-    for alpha in range(0,256,3):
-        temp7 = frame7.copy()
-        temp7.set_alpha(255-alpha)
-        temp8 = frame8.copy()
-        temp8.set_alpha(alpha)
-        screen.fill((0,0,0))
-        screen.blit(temp7,(0,0))
-        screen.blit(temp8,(0,0))
-        pygame.display.update()
-        pygame.event.pump()
-        pygame.time.delay(20)
-        if not played_gameover:
-            bgm_gameover.play()
-            played_gameover = True
-    pygame.event.pump()
-    pygame.time.delay(700)
-
-# =====================================
-# 前進動畫
-# =====================================
-def play_gogo_animation():
-    for frame in gogo_frames:
-        screen.blit(frame, (0, 0))
-        pygame.display.update()
-        pygame.time.delay(120)
-    pygame.time.delay(300)
 
 # =====================================
 # 轉場動畫
@@ -638,6 +407,52 @@ while True:
     # Event 鍵盤監聽 (只在 GAME_PLAYING 時有效)
     # =================================
     for event in pygame.event.get():
+        if game_state == GAME_MENU:
+
+            result = menu.handle_event(event)
+
+            if result == "PLAY":
+
+                intro.reset()
+                game_state = GAME_INTRO
+
+            elif result == "SETTINGS":
+
+                game_state = GAME_SETTING
+
+            elif result == "HELP":
+
+                game_state = GAME_HELP
+
+            elif result == "EXIT":
+
+                pygame.quit()
+                sys.exit()
+
+        elif game_state == GAME_SETTING:
+
+            result = setting.handle_event(event)
+
+            if result == "BACK":
+
+                game_state = GAME_MENU
+
+        elif game_state == GAME_INTRO:
+
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_SPACE:
+
+                    intro.next_scene()
+
+        elif game_state == GAME_OUTRO:
+
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_SPACE:
+
+                    outro.next_scene()
+
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
@@ -676,8 +491,18 @@ while True:
                     # 🌟 優先判定：推開大樓側邊的「假門」，下一格掉出大樓外！
                     if nx < 0 or nx >= MAP_SIZE or ny < 0 or ny >= MAP_SIZE:
                         # 💀 處決：推開邊緣假門墜樓死亡
-                        fade_door("death")
-                        play_gogo_animation()
+                        fade_door(
+                            screen,
+                            "death",
+                            current_view,
+                            world_room,
+                            world_photos,
+                            wall_img,
+                            door_base_img,
+                            SIGN_X,
+                            SIGN_Y
+                        )
+                        play_gogo_animation(screen)
                         lives -= 1
                         
                         if lives <= 0:
@@ -699,25 +524,50 @@ while True:
                     else:
                         if dungeon_map[ny][nx] == 1:
                             # ─── 【生路：前進下一間房】 ───
-                            fade_door("life") 
-                            play_gogo_animation()
+                            fade_door(
+                                screen,
+                                "life",
+                                current_view,
+                                world_room,
+                                world_photos,
+                                wall_img,
+                                door_base_img,
+                                SIGN_X,
+                                SIGN_Y
+                            )
+                            play_gogo_animation(screen)
                             
-                            if current_step_index + 1 >= len(full_path):
+                            current_step_index += 1
+                            player_x, player_y = full_path[current_step_index]
+
+                            if current_step_index >= len(full_path)-1:
+
                                 stop_all_audio()
-                                game_state = GAME_CLEAR
+
+                                outro.reset()
+
+                                game_state = GAME_OUTRO
+
                             else:
-                                current_step_index += 1
-                                player_x, player_y = full_path[current_step_index] # 正式移過去
-                                
-                                # 到了新房間，重新發照片固定 東西南北 裝潢
+
                                 reset_room_audio()
                                 assign_room_photos()
-                                room_start_time = pygame.time.get_ticks() 
+                                room_start_time = pygame.time.get_ticks()
                                 print_terminal_status()
                         else:
                             # ─── 【死路：踩進大樓內側的錯誤門】 ───
-                            fade_door("death")
-                            play_gogo_animation()
+                            fade_door(
+                                screen,
+                                "death",
+                                current_view,
+                                world_room,
+                                world_photos,
+                                wall_img,
+                                door_base_img,
+                                SIGN_X,
+                                SIGN_Y
+                            )
+                            play_gogo_animation(screen)
                             lives -= 1
                             if lives <= 0:
                                 stop_all_audio()
@@ -736,11 +586,48 @@ while True:
     # =================================
     # Draw 渲染畫面
     # =================================
-    if game_state == GAME_OBSERVING:
-        draw_observer_map(remaining_time)
+    if game_state == GAME_MENU:
+
+        menu.draw(screen)
+
+    elif game_state == GAME_SETTING:
+
+        setting.draw(screen)
+
+    elif game_state == GAME_INTRO:
+
+        intro.update()
+        intro.draw(screen)
+
+        if intro.finished:
+
+            start_ticks = pygame.time.get_ticks()
+            game_state = GAME_OBSERVING
+    
+    elif game_state == GAME_OBSERVING:
+        draw_observer_map(
+            remaining_time,
+            screen,
+            HEIGHT,
+            MAP_SIZE,
+            start_pos,
+            end_pos,
+            dungeon_map,
+            map_font,
+            timer_font
+        )
 
     elif game_state == GAME_PLAYING:
-        draw_room()
+        draw_room(
+            screen,
+            current_view,
+            world_room,
+            world_photos,
+            wall_img,
+            door_base_img,
+            SIGN_X,
+            SIGN_Y
+        )
 
         timer_color = (255, 0, 0) if remaining_time <= 10 else (255, 255, 255)
         border_color = (255, 0, 0) if remaining_time <= 10 else (255, 255, 255)
@@ -782,23 +669,20 @@ while True:
             screen.blit(warning_surface, (0, 0))
 
     elif game_state == GAME_OVER:
-        if game_over_reason == GAME_OVER_BY_DEATH:
-            if game_over_reason is not None:
-                play_game_over_animation()
-                game_over_reason = None 
-            screen.blit(game_over_frames[7], (0, 0))
 
-        elif game_over_reason == GAME_OVER_BY_TIMEOUT:
-            if game_over_reason is not None:
-                play_timeout_game_over()
-                game_over_reason = None
-            screen.blit(timeup_frames[1], (0, 0))
-                 
-    elif game_state == GAME_CLEAR:
-        screen.fill((0, 0, 0))
-        clear_font = pygame.font.SysFont("Courier New", 48, bold=True)
-        clear_text = clear_font.render("CLEAR!", True, (0, 255, 0))
-        screen.blit(clear_text, (WIDTH // 2 - clear_text.get_width() // 2, HEIGHT // 2 - clear_text.get_height() // 2))
+        draw_game_over(
+            screen,
+            game_over_reason,
+            GAME_OVER_BY_DEATH,
+            GAME_OVER_BY_TIMEOUT
+        )
+
+    elif game_state == GAME_OUTRO:
+        outro.update()
+        outro.draw(screen)
+
+        if outro.finished:
+           game_state = GAME_MENU    
 
     pygame.display.update()
     clock.tick(30)
