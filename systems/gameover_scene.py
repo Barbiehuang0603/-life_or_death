@@ -30,6 +30,8 @@ for i in range(1,3):
 bgm_gameover = None
 
 played_gameover = False
+animation_finished = False
+gameover_start_time = None
 
 def play_timeout_game_over(screen):
     global played_gameover
@@ -131,24 +133,50 @@ def draw_game_over(
         GAME_OVER_BY_DEATH,
         GAME_OVER_BY_TIMEOUT
 ):
-    
+
+    global animation_finished
+    global gameover_start_time
+
+    # ===== 死亡 =====
     if game_over_reason == GAME_OVER_BY_DEATH:
 
-        play_game_over_animation(screen)
+        if not animation_finished:
+
+            play_game_over_animation(screen)
+
+            animation_finished = True
+
+            gameover_start_time = pygame.time.get_ticks()
 
         screen.blit(
             game_over_frames[7],
             (0,0)
         )
 
+    # ===== 超時 =====
     elif game_over_reason == GAME_OVER_BY_TIMEOUT:
 
-        play_timeout_game_over(screen)
+        if not animation_finished:
+
+            play_timeout_game_over(screen)
+
+            animation_finished = True
+
+            gameover_start_time = pygame.time.get_ticks()
 
         screen.blit(
             timeup_frames[1],
             (0,0)
         )
+
+    # ===== 停留兩秒後回傳 True =====
+    if (
+        animation_finished
+        and pygame.time.get_ticks() - gameover_start_time >= 2000
+    ):
+        return True
+
+    return False
 
 def init_gameover():
 
@@ -161,3 +189,13 @@ def init_gameover():
     bgm_gameover = pygame.mixer.Sound(
         sound_gameover_path
     )
+
+def reset_gameover():
+
+    global played_gameover
+    global animation_finished
+    global gameover_start_time
+
+    played_gameover = False
+    animation_finished = False
+    gameover_start_time = None
