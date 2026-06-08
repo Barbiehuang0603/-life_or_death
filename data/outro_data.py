@@ -1,6 +1,13 @@
 OUTRO_SCENES = [
 
     {
+        "image": "assets/room/gogo/005.jpg",
+        "text": "",
+        "auto": True,
+        "duration": 3000
+    },
+
+    {
         "image": "assets/outro/IMG_2711.PNG",
         "text": "終於逃出來了……",
         "auto": False
