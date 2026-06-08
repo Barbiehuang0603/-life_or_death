@@ -1,0 +1,7 @@
+PLAYER_NAME = "Joanna"
+
+BGM_VOLUME = 80
+
+SE_VOLUME = 100
+
+TEXT_SPEED = 40
